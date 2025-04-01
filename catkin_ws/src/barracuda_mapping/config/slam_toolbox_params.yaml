@@ -1,0 +1,39 @@
+slam_toolbox:
+
+  # Core settings
+  use_scan_matching: true
+  use_slam: true
+  mode: "mapping"  # can also be "localization"
+
+  # Map publishing
+  resolution: 0.05
+  map_publish_period: 1.0
+  map_update_interval: 2.0
+  publish_map: true
+
+  # TF settings
+  publish_tf: true
+  transform_publish_period: 0.05
+
+  # Sensor data settings
+  scan_topic: /scan
+  max_laser_range: 25.0
+  minimum_time_interval: 0.5
+
+  # Optimizer settings
+  optimizer_params:
+    solver_type: "lm_var_cholmod"
+    max_num_iterations: 100
+
+  # Loop closure
+  loop_closure: true
+  loop_closure_threshold: 1.0
+  loop_closure_window: 10
+
+  # Serialization and loading
+  serialization_format: "cbor"
+  serialization_file: ""
+
+  # Debug/logging
+  debug_logging: false
+  enable_interactive_mode: false
