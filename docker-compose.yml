@@ -1,0 +1,10 @@
+services:
+  barracuda-mapping:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: barracuda-mapping
+    tty: true
+    network_mode: host
+    volumes:
+      - $HOME/.ssh:/root/.ssh
