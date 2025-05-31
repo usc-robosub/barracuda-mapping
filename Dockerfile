@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim git \
     ros-noetic-slam-toolbox \
     ros-noetic-navigation \
+    ros-noetic-octomap-server \
+    ros-noetic-octomap-msgs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /opt/barracuda-mapping
