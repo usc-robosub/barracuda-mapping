@@ -8,3 +8,10 @@ services:
     network_mode: host
     volumes:
       - $HOME/.ssh:/root/.ssh
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
