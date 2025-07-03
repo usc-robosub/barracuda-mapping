@@ -2,12 +2,23 @@
   <!-- Set to true if you're playing from a bag file with recorded time -->
   <param name="use_sim_time" value="true" />
 
-  <!-- Load parameters from a config YAML file -->
+  <!-- Load parameters for SLAM Toolbox -->
   <rosparam command="load" file="$(find barracuda_mapping)/config/slam_toolbox_params.yaml" />
+  
+  <!-- Load parameters for depth image to laser scan conversion -->
+  <rosparam command="load" file="$(find barracuda_mapping)/config/depthimage_to_laserscan_params.yaml" />
+
+  <!-- Depth image to laser scan converter -->
+  <node name="depthimage_to_laserscan" pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" output="screen">
+    <!-- Input depth image topic (change this to match your camera's depth topic) -->
+    <remap from="image" to="/camera/depth/image_raw" />
+    <remap from="camera_info" to="/camera/depth/camera_info" />
+    <!-- Output laser scan topic -->
+    <remap from="scan" to="/scan" />
+  </node>
 
   <!-- Launch SLAM Toolbox in online async mode -->
   <node name="slam_toolbox" pkg="slam_toolbox" type="async_slam_toolbox_node" output="screen">
-    <!-- Optional remapping if needed -->
-    <!-- <remap from="/scan" to="/your_lidar_topic" /> -->
+    <!-- The scan topic is already set in the config file -->
   </node>
 </launch>

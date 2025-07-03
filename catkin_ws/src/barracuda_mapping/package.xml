@@ -50,6 +50,9 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
 
+  <!-- ROS package dependencies -->
+  <exec_depend>depthimage_to_laserscan</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

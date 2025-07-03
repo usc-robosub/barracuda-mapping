@@ -1,0 +1,19 @@
+depthimage_to_laserscan:
+  # Output frame for the laser scan
+  output_frame_id: camera_depth_frame
+  
+  # Range limits (in meters)
+  range_min: 0.45          # Minimum range value (meters)
+  range_max: 10.0          # Maximum range value (meters)
+  
+  # Scan configuration
+  scan_height: 1           # Number of pixel rows used to generate the laser scan
+  scan_time: 0.033         # Time between scans [seconds] (30 Hz)
+  
+  # Angular limits (in radians)
+  angle_min: -1.5708       # Start angle of the scan [rad] (-90 degrees)
+  angle_max: 1.5708        # End angle of the scan [rad] (90 degrees)
+  angle_increment: 0.0087  # Angular distance between measurements [rad] (~0.5 degrees)
+  
+  # Use the center row of the depth image
+  use_point_cloud2: false

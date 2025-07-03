@@ -1,0 +1,20 @@
+<launch>
+  <!-- Depth camera to laser scan conversion launch file -->
+  
+  <!-- Load parameters for depth image to laser scan conversion -->
+  <rosparam command="load" file="$(find barracuda_mapping)/config/depthimage_to_laserscan_params.yaml" />
+
+  <!-- Depth image to laser scan converter -->
+  <node name="depthimage_to_laserscan" pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" output="screen">
+    <!-- Input depth image topic (change these to match your camera's topics) -->
+    <remap from="image" to="/camera/depth/image_raw" />
+    <remap from="camera_info" to="/camera/depth/camera_info" />
+    
+    <!-- Output laser scan topic -->
+    <remap from="scan" to="/scan" />
+    
+    <!-- Parameters can be overridden here if needed -->
+    <!-- <param name="range_max" value="5.0" /> -->
+    <!-- <param name="range_min" value="0.5" /> -->
+  </node>
+</launch>
