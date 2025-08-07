@@ -1,6 +1,15 @@
 # Use the official ROS Noetic base image (based on Ubuntu 20.04)
 FROM ros:noetic-ros-base
 
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Preseed keyboard configuration to prevent interactive prompt
+RUN echo 'keyboard-configuration keyboard-configuration/layout select English (US)' | debconf-set-selections && \
+    echo 'keyboard-configuration keyboard-configuration/modelcode string pc105' | debconf-set-selections && \
+    echo 'keyboard-configuration keyboard-configuration/variant select US' | debconf-set-selections && \
+    echo 'keyboard-configuration keyboard-configuration/layoutcode string us' | debconf-set-selections
+
 # Install dependencies and CUDA runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
