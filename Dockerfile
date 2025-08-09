@@ -19,6 +19,8 @@ RUN apt-get update \
         libmetis-dev \
         libgtsam-points-cuda12.2-dev \
         ros-noetic-glim-ros-cuda12.2 \
+        # Install libraries for processing laser data
+        ros-noetic-laser-pipeline \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /opt/barracuda-mapping
