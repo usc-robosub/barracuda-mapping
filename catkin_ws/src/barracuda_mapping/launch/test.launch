@@ -1,0 +1,18 @@
+<launch>
+	<arg name="config_path" default="$(find barracuda_mapping)/config"/>
+
+    <node pkg="topic_tools" type="relay" name="camera_relay" args="/barracuda/left_camera/zed_point_cloud /barracuda/mapping/scan_pointcloud">
+    </node>
+
+    <node pkg="barracuda_mapping" type="laserscan_to_pointcloud.py" name="laserscan_to_pointcloud">
+    </node>
+
+    <node pkg="laser_assembler" type="point_cloud2_assembler" name="assembler">
+        <remap from="cloud" to="/barracuda/mapping/scan_pointcloud"/>
+        <param name="max_clouds" type="int" value="400" />
+        <param name="fixed_frame" type="string" value="base_link" />
+    </node>
+
+    <node pkg="barracuda_mapping" type="assemble_pointcloud.py" name="assemble_publisher">
+    </node>
+</launch>
