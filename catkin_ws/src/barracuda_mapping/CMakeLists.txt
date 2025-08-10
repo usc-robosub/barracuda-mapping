@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_sensor_msgs
   tf2_eigen
   message_generation
+  octomap_msgs
 )
 
 find_package(GTSAM REQUIRED)
@@ -111,7 +112,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS roscpp sensor_msgs nav_msgs geometry_msgs pcl_ros tf2_ros tf2_sensor_msgs tf2_eigen message_runtime
+  CATKIN_DEPENDS roscpp sensor_msgs nav_msgs geometry_msgs pcl_ros tf2_ros tf2_sensor_msgs tf2_eigen message_runtime octomap_msgs
   DEPENDS GTSAM OCTOMAP
 )
 

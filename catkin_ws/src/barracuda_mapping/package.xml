@@ -61,6 +61,7 @@
   <build_depend>message_generation</build_depend>
   <build_depend>gtsam</build_depend>
   <build_depend>octomap</build_depend>
+  <build_depend>octomap_msgs</build_depend>
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
@@ -73,6 +74,8 @@
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>gtsam</exec_depend>
   <exec_depend>octomap</exec_depend>
+  <exec_depend>octomap_msgs</exec_depend>
+  <!-- octomap_ros and octomap_server are not used; removed to slim deps -->
 
 
   <!-- The export tag contains other, unspecified, tags -->

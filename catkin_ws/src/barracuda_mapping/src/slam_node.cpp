@@ -17,6 +17,8 @@
 #include <cmath>
 
 #include <octomap/octomap.h>
+#include <octomap_msgs/Octomap.h>
+#include <octomap_msgs/conversions.h>
 
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -76,6 +78,8 @@ public:
     }
     collision_srv_ = nh_.advertiseService("check_collision", &SlamNode::checkCollision, this);
     odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
+    octomap_full_pub_ = nh_.advertise<octomap_msgs::Octomap>("octomap_full", 1, true);
+    octomap_binary_pub_ = nh_.advertise<octomap_msgs::Octomap>("octomap_binary", 1, true);
 
     ROS_INFO_STREAM("SlamNode parameters: map_frame='" << map_frame_
                     << "' base_frame='" << base_frame_
@@ -134,6 +138,20 @@ private:
                             tf.transform.translation.z);
     octree_->insertPointCloud(octo_cloud, origin);
     octree_->updateInnerOccupancy();
+
+    // Publish OctoMap for visualization (full and binary)
+    octomap_msgs::Octomap full_msg;
+    if (octomap_msgs::fullMapToMsg(*octree_, full_msg)) {
+      full_msg.header.frame_id = map_frame_;
+      full_msg.header.stamp = msg->header.stamp;
+      octomap_full_pub_.publish(full_msg);
+    }
+    octomap_msgs::Octomap bin_msg;
+    if (octomap_msgs::binaryMapToMsg(*octree_, bin_msg)) {
+      bin_msg.header.frame_id = map_frame_;
+      bin_msg.header.stamp = msg->header.stamp;
+      octomap_binary_pub_.publish(bin_msg);
+    }
 
     ++pose_idx_;
     // Convert TF to Eigen Isometry and then to GTSAM Pose3 via 4x4 matrix
@@ -208,6 +226,8 @@ private:
   std::vector<ros::Subscriber> cloud_subs_;
   ros::ServiceServer collision_srv_;
   ros::Publisher odom_pub_;
+  ros::Publisher octomap_full_pub_;
+  ros::Publisher octomap_binary_pub_;
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_cloud_;
