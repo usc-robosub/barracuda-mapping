@@ -22,22 +22,7 @@ This repository provides:
   - `CMakeLists.txt`, `package.xml`: Build and dependencies.
 - `Dockerfile`, `docker-compose.yml`, `entrypoint.sh`: Containerized build/run.
 
-## Requirements
-Building and running natively has been validated with:
-- ROS Noetic (Ubuntu 20.04)
-- GTSAM 4.x (`libgtsam-dev`, `libgtsam-unstable-dev`)
-- ROS packages: `pcl_ros`, `tf2_eigen`, `tf2_sensor_msgs`
-
-You can install via apt on Ubuntu 20.04 (Noetic):
-```
-sudo apt update
-sudo apt install ros-noetic-ros-base ros-noetic-pcl-ros \
-                 ros-noetic-tf2-eigen ros-noetic-tf2-sensor-msgs \
-                 libgtsam-dev libgtsam-unstable-dev
-```
-
 ## Quickstart (Docker)
-If you prefer an isolated environment, use the provided Docker setup.
 
 1) Build and run with docker compose:
 ```
