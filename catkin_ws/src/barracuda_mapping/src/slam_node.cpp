@@ -8,11 +8,15 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include <string>
 #include <vector>
+#include <memory>
 #include <XmlRpcValue.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
+#include <cmath>
+
+#include <octomap/octomap.h>
 
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -33,6 +37,9 @@ public:
     pnh.param<std::string>("map_frame", map_frame_, std::string("map"));
     pnh.param<std::string>("base_frame", base_frame_, std::string("base_link"));
     pnh.param<std::string>("odometry_topic", odom_topic_, std::string("slam/odometry"));
+    double resolution;
+    pnh.param("octomap_resolution", resolution, 0.1);
+    octree_ = std::make_unique<octomap::OcTree>(resolution);
     // Parse pointcloud topic(s) robustly: support list or single string.
     // Prefer ~pointcloud_topics (YAML list or string). Fallback to ~pointcloud_topic.
     XmlRpc::XmlRpcValue pc_param;
@@ -110,9 +117,23 @@ private:
     pcl::PointCloud<pcl::PointXYZ> tmp;
     pcl::fromROSMsg(transformed, tmp);
     std::size_t before = map_cloud_->size();
+    map_cloud_->reserve(map_cloud_->size() + tmp.size());
     *map_cloud_ += tmp;
     ROS_INFO_STREAM_THROTTLE(1.0, "Added " << tmp.size() << " points to map ("
                                       << before << " -> " << map_cloud_->size() << ").");
+
+    // Update Octomap
+    octomap::Pointcloud octo_cloud;
+    octo_cloud.reserve(tmp.size());
+    for (const auto &pt : tmp.points) {
+      if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
+        octo_cloud.push_back(pt.x, pt.y, pt.z);
+    }
+    octomap::point3d origin(tf.transform.translation.x,
+                            tf.transform.translation.y,
+                            tf.transform.translation.z);
+    octree_->insertPointCloud(octo_cloud, origin);
+    octree_->updateInnerOccupancy();
 
     ++pose_idx_;
     // Convert TF to Eigen Isometry and then to GTSAM Pose3 via 4x4 matrix
@@ -154,13 +175,28 @@ private:
                       barracuda_mapping::CheckCollision::Response &res) {
     Eigen::Vector3d center(req.center.x, req.center.y, req.center.z);
     ROS_INFO_STREAM_THROTTLE(1.0, "check_collision called: center=[" << center.transpose()
-                                      << "] r=" << req.radius << ". Map size=" << map_cloud_->size());
-    for (const auto &pt : map_cloud_->points) {
-      Eigen::Vector3d p(pt.x, pt.y, pt.z);
-      if ((p - center).norm() <= req.radius) {
-        res.collision = true;
-        ROS_INFO_THROTTLE(1.0, "Collision detected.");
-        return true;
+                                      << "] r=" << req.radius << ". Octomap size="
+                                      << octree_->getNumLeafNodes());
+
+    const double r2 = req.radius * req.radius;
+    const octomap::point3d min(center.x() - req.radius,
+                               center.y() - req.radius,
+                               center.z() - req.radius);
+    const octomap::point3d max(center.x() + req.radius,
+                               center.y() + req.radius,
+                               center.z() + req.radius);
+    for (octomap::OcTree::leaf_bbx_iterator it = octree_->begin_leafs_bbx(min, max);
+         it != octree_->end_leafs_bbx(); ++it) {
+      if (it->getOccupancy() >= octree_->getOccupancyThres()) {
+        const octomap::point3d &p = it.getCoordinate();
+        const double dx = p.x() - center.x();
+        const double dy = p.y() - center.y();
+        const double dz = p.z() - center.z();
+        if (dx*dx + dy*dy + dz*dz <= r2) {
+          res.collision = true;
+          ROS_INFO_THROTTLE(1.0, "Collision detected.");
+          return true;
+        }
       }
     }
     res.collision = false;
@@ -175,6 +211,7 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_cloud_;
+  std::unique_ptr<octomap::OcTree> octree_;
   gtsam::ISAM2 isam_;
   gtsam::NonlinearFactorGraph graph_;
   gtsam::Values initial_;
