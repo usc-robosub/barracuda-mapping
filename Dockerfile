@@ -5,14 +5,18 @@ FROM ros:noetic-ros-base
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install minimal build and runtime dependencies
-RUN apt-get update \
+RUN apt-get update \ 
     && apt-get install -y --no-install-recommends \
+        software-properties-common
+RUN add-apt-repository ppa:borglab/gtsam-release-4.0
+RUN apt-get install -y --no-install-recommends \
         build-essential \
         curl \
         vim \
         wget \
         git \
         libgtsam-dev \
+        libgtsam-unstable-dev \
         ros-noetic-pcl-ros \
         ros-noetic-tf2-eigen \
         ros-noetic-tf2-sensor-msgs \
@@ -26,4 +30,3 @@ WORKDIR /opt
 
 # Run entrypoint on container start
 CMD [ "/bin/bash", "/opt/barracuda-mapping/entrypoint.sh" ]
-

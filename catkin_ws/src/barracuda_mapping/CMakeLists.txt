@@ -122,7 +122,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${GTSAM_INCLUDE_DIR}
+  ${GTSAM_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -153,7 +153,7 @@ add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED
 ## Specify libraries to link a library or executable target against
 target_link_libraries(slam_node
   ${catkin_LIBRARIES}
-  ${GTSAM_LIBRARIES}
+  gtsam
 )
 
 #############
