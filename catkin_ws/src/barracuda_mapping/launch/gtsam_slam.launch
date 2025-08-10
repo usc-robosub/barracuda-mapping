@@ -1,12 +1,6 @@
 <launch>
-  <arg name="map_frame" default="map" />
-  <arg name="base_frame" default="barracuda/base_link" />
-  <arg name="pointcloud_topics" default="[/barracuda/left_camera/zed_point_cloud]" />
-
-  <node pkg="barracuda_mapping" type="slam_node" name="gtsam_slam_node" output="screen">
-    <param name="map_frame" value="$(arg map_frame)" />
-    <param name="base_frame" value="$(arg base_frame)" />
-    <!-- Enable substitution so the YAML list/string from the arg is expanded -->
-    <rosparam param="pointcloud_topics" subst_value="true">$(arg pointcloud_topics)</rosparam>
+  <node pkg="barracuda_mapping" type="slam_node" name="gtsam_slam_node" ns="barracuda" output="screen">
+    <!-- Load all parameters from YAML into the node's private namespace -->
+    <rosparam command="load" file="$(find barracuda_mapping)/config/gtsam_params.yaml" />
   </node>
 </launch>
