@@ -1,0 +1,17 @@
+# Parameters for gtsam_slam_node
+
+# Input topics: can be a single string or a list of strings.
+# Use absolute topics (starting with '/') or relative ones resolved in the node's namespace.
+pointcloud_topics:
+  - left_camera/zed_point_cloud
+
+# Output topic for odometry (published as nav_msgs/Odometry).
+# If left without a leading '/', it will be resolved relative to the node's namespace.
+odometry_topic: slam/odometry
+
+# TF frames used by the node.
+# These mirror the launch defaults so configuration can live in one place.
+# The launch file may still override these via <param>, but keeping them here
+# makes the parameters discoverable and easier to manage.
+map_frame: map
+base_frame: barracuda/base_link
