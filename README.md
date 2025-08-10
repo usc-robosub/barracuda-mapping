@@ -35,20 +35,6 @@ Notes:
 - The compose file uses `network_mode: host` to expose ROS topics directly.
 - An NVIDIA GPU is reserved in the compose file, but the node itself does not require GPU.
 
-## Build & Run (Native)
-1) Source ROS and build the workspace:
-```
-source /opt/ros/noetic/setup.bash
-cd catkin_ws
-catkin_make
-source devel/setup.bash
-```
-
-2) Launch the node:
-```
-roslaunch barracuda_mapping gtsam_slam.launch
-```
-
 The launch file loads defaults from `config/gtsam_params.yaml`.
 
 ## Parameters
@@ -59,7 +45,7 @@ All parameters are loaded into the node’s private namespace via the launch fil
   - Single string also supported. Falls back to `/points` if unset.
 - `odometry_topic` (string): Output odometry topic. Default: `slam/odometry`.
 - `map_frame` (string): Map/world frame. Default: `map`.
-- `base_frame` (string): Robot base frame. Default: `base_link` (overridden to `barracuda/base_link` in the sample YAML).
+- `base_frame` (string): Robot base frame. Default: `base_link` (overridden to `barracuda/base_link` in the YAML).
 
 See `config/gtsam_params.yaml` for an example configuration.
 
@@ -91,7 +77,3 @@ The node looks up TF from each cloud’s `frame_id` to `map_frame` at the messag
 ## Troubleshooting
 - No odometry output: verify TF is available between cloud frames and `map_frame`.
 - No point clouds received: confirm `~pointcloud_topics` matches actual topic names.
-- Build errors for GTSAM: ensure `libgtsam-dev` 4.x is installed and discoverable.
-
-## License
-License information is not yet specified in `package.xml` (marked TODO). Add your preferred license before distribution.
