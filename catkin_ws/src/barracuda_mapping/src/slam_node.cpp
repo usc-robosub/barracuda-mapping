@@ -260,6 +260,9 @@ private:
   std::string map_frame_;
   std::string base_frame_;
   std::string odom_topic_;
+  // Downsampling configuration
+  bool downsample_enabled_;
+  double downsample_leaf_size_;
 };
 
 int main(int argc, char **argv) {
