@@ -15,3 +15,14 @@ odometry_topic: slam/odometry
 # makes the parameters discoverable and easier to manage.
 map_frame: map
 base_frame: barracuda/base_link
+
+# OctoMap resolution (meters per voxel in the occupancy tree).
+# Used as default leaf size for point cloud downsampling if not set explicitly.
+octomap_resolution: 0.25
+
+# Point cloud downsampling before inserting into OctoMap.
+# When enabled, a PCL VoxelGrid filter reduces points by replacing points
+# within a voxel with their centroid, greatly speeding up OctoMap insertion.
+downsample_enabled: true
+# Leaf size (meters) for the VoxelGrid. If omitted, defaults to octomap_resolution.
+downsample_leaf_size: 0.25
