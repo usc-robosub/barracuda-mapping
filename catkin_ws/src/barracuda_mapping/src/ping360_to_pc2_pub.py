@@ -30,8 +30,8 @@ def on_receive_ping360_data(data):
 def ping360_to_pc2_pub_node():
     global ping360_to_pc2_pub
     rospy.init_node('ping360_to_pc2_pub_node', anonymous=True)
-    rospy.Subscriber('ping360/data', LaserScan, on_receive_ping360_data) # check topic name
-    ping360_to_pc2_pub = rospy.Publisher('/ping360_pointcloud', PointCloud2, queue_size=10) # check topic name
+    rospy.Subscriber('/scan', LaserScan, on_receive_ping360_data) # check topic name!
+    ping360_to_pc2_pub = rospy.Publisher('/ping360_pointcloud', PointCloud2, queue_size=10) # check topic name!
     rospy.spin()
 
 if __name__ == '__main__':
