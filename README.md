@@ -7,6 +7,8 @@ This repository provides:
 - A launch file and YAML config for topics/frames.
 - Optional Docker setup for a reproducible environment.
 
+Note on dependencies: the project uses `liboctomap` and `octomap_msgs` directly and does not rely on `octomap_ros` or `octomap_server`. The Docker image and package manifest have been trimmed accordingly.
+
 ## Features
 - Incremental pose graph with GTSAM iSAM2 (prior + between factors).
 - Transforms incoming point clouds into `map` frame via TF2 and aggregates them.
@@ -55,6 +57,9 @@ See `config/gtsam_params.yaml` for an example configuration.
 - Service: `check_collision` (`barracuda_mapping/CheckCollision`)
   - Request: `geometry_msgs/Point center`, `float64 radius`
   - Response: `bool collision`
+- Published OctoMap (for RViz):
+  - `octomap_full` (`octomap_msgs/Octomap`): Full map message (latched).
+  - `octomap_binary` (`octomap_msgs/Octomap`): Binary map message (latched).
 
 Example service call:
 ```
@@ -77,3 +82,14 @@ The node looks up TF from each cloud’s `frame_id` to `map_frame` at the messag
 ## Troubleshooting
 - No odometry output: verify TF is available between cloud frames and `map_frame`.
 - No point clouds received: confirm `~pointcloud_topics` matches actual topic names.
+- CMake cannot find octomap: ensure `liboctomap-dev` is installed in your environment. In Docker this is preinstalled; for native builds on Ubuntu 20.04/ROS Noetic: `sudo apt-get install liboctomap-dev ros-noetic-octomap-msgs`.
+
+## Visualization
+- RViz: Add an `Octomap` display and set Topic to `/barracuda/octomap_full` or `/barracuda/octomap_binary`. Fixed Frame should match your `map_frame` (default `map`).
+- Note: `octomap_server` is not required here since the node publishes `octomap_msgs/Octomap` directly, which RViz can visualize without conversion.
+
+## Native Setup (optional)
+If you prefer building outside Docker on Ubuntu 20.04 with ROS Noetic:
+- Install deps: `sudo apt-get update && sudo apt-get install -y build-essential libgtsam-dev liboctomap-dev ros-noetic-octomap-msgs ros-noetic-pcl-ros ros-noetic-tf2-eigen ros-noetic-tf2-sensor-msgs`
+- Build: `cd catkin_ws && source /opt/ros/noetic/setup.bash && catkin_make`
+- Source: `source devel/setup.bash`

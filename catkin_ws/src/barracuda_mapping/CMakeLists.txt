@@ -17,9 +17,11 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_sensor_msgs
   tf2_eigen
   message_generation
+  octomap_msgs
 )
 
 find_package(GTSAM REQUIRED)
+find_package(octomap REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -110,8 +112,8 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS roscpp sensor_msgs nav_msgs geometry_msgs pcl_ros tf2_ros tf2_sensor_msgs tf2_eigen message_runtime
-  DEPENDS GTSAM
+  CATKIN_DEPENDS roscpp sensor_msgs nav_msgs geometry_msgs pcl_ros tf2_ros tf2_sensor_msgs tf2_eigen message_runtime octomap_msgs
+  DEPENDS GTSAM OCTOMAP
 )
 
 ###########
@@ -123,6 +125,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${GTSAM_INCLUDE_DIRS}
+  ${OCTOMAP_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -154,6 +157,7 @@ add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED
 target_link_libraries(slam_node
   ${catkin_LIBRARIES}
   gtsam
+  ${OCTOMAP_LIBRARIES}
 )
 
 #############

@@ -17,6 +17,8 @@ RUN apt-get install -y --no-install-recommends \
         git \
         libgtsam-dev \
         libgtsam-unstable-dev \
+        ros-noetic-octomap \
+        ros-noetic-octomap-msgs \
         ros-noetic-pcl-ros \
         ros-noetic-tf2-eigen \
         ros-noetic-tf2-sensor-msgs \
