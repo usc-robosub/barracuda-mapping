@@ -22,6 +22,7 @@ RUN apt-get install -y --no-install-recommends \
         ros-noetic-pcl-ros \
         ros-noetic-tf2-eigen \
         ros-noetic-tf2-sensor-msgs \
+        ros-noetic-laser-pipeline \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy source code into container
