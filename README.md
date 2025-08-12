@@ -48,6 +48,9 @@ All parameters are loaded into the node’s private namespace via the launch fil
 - `odometry_topic` (string): Output odometry topic. Default: `slam/odometry`.
 - `map_frame` (string): Map/world frame. Default: `map`.
 - `base_frame` (string): Robot base frame. Default: `base_link` (overridden to `barracuda/base_link` in the YAML).
+- `octomap_resolution` (double): OcTree resolution in meters per voxel. Default: `0.25`.
+- `downsample_enabled` (bool): Enable VoxelGrid downsampling before OctoMap insertion. Default: `true`.
+- `downsample_leaf_size` (double): VoxelGrid leaf size in meters. Defaults to `octomap_resolution` if unset. Default: `0.25` in the provided YAML.
 
 See `config/gtsam_params.yaml` for an example configuration.
 
@@ -71,7 +74,7 @@ The node looks up TF from each cloud’s `frame_id` to `map_frame` at the messag
 
 ## Notes on Behavior
 - Pose graph: starts with a prior at index 0, then adds a `BetweenFactor` between the last pose and the current TF-derived pose, updating iSAM2 incrementally.
-- Map growth: all transformed points are appended to a single `pcl::PointCloud<pcl::PointXYZ>`. There is no downsampling or loop‑closure map correction in this minimal example.
+- Map growth: transformed (optionally downsampled) points are appended to a single `pcl::PointCloud<pcl::PointXYZ>`. There is no loop‑closure map correction in this minimal example.
 - Namespacing: `odometry_topic` without a leading `/` resolves relative to the node namespace (in the launch file it runs under `ns="barracuda"`).
 
 ## Customization

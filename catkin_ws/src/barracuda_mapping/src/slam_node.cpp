@@ -14,6 +14,7 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
 #include <cmath>
 
 #include <octomap/octomap.h>
@@ -42,6 +43,10 @@ public:
     double resolution;
     pnh.param("octomap_resolution", resolution, 0.1);
     octree_ = std::make_unique<octomap::OcTree>(resolution);
+
+    // Downsampling parameters (voxel grid)
+    pnh.param("downsample_enabled", downsample_enabled_, true);
+    pnh.param("downsample_leaf_size", downsample_leaf_size_, resolution);
     // Parse pointcloud topic(s) robustly: support list or single string.
     // Prefer ~pointcloud_topics (YAML list or string). Fallback to ~pointcloud_topic.
     XmlRpc::XmlRpcValue pc_param;
@@ -83,7 +88,9 @@ public:
 
     ROS_INFO_STREAM("SlamNode parameters: map_frame='" << map_frame_
                     << "' base_frame='" << base_frame_
-                    << "' odometry_topic='" << odom_topic_ << "'.");
+                    << "' odometry_topic='" << odom_topic_
+                    << "' downsample_enabled=" << (downsample_enabled_ ? "true" : "false")
+                    << " downsample_leaf_size=" << downsample_leaf_size_ << ".");
 
     auto noise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << 0.01,0.01,0.01,0.01,0.01,0.01).finished());
     graph_.add(gtsam::PriorFactor<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_), gtsam::Pose3(), noise));
@@ -120,16 +127,30 @@ private:
 
     pcl::PointCloud<pcl::PointXYZ> tmp;
     pcl::fromROSMsg(transformed, tmp);
+
+    // Downsample via voxel grid if enabled
+    pcl::PointCloud<pcl::PointXYZ> processed;
+    if (downsample_enabled_) {
+      pcl::VoxelGrid<pcl::PointXYZ> vg;
+      vg.setLeafSize(static_cast<float>(downsample_leaf_size_),
+                     static_cast<float>(downsample_leaf_size_),
+                     static_cast<float>(downsample_leaf_size_));
+      vg.setInputCloud(tmp.makeShared());
+      vg.filter(processed);
+    } else {
+      processed = std::move(tmp);
+    }
+
     std::size_t before = map_cloud_->size();
-    map_cloud_->reserve(map_cloud_->size() + tmp.size());
-    *map_cloud_ += tmp;
-    ROS_INFO_STREAM_THROTTLE(1.0, "Added " << tmp.size() << " points to map ("
+    map_cloud_->reserve(map_cloud_->size() + processed.size());
+    *map_cloud_ += processed;
+    ROS_INFO_STREAM_THROTTLE(1.0, "Added " << processed.size() << " points to map ("
                                       << before << " -> " << map_cloud_->size() << ").");
 
     // Update Octomap
     octomap::Pointcloud octo_cloud;
-    octo_cloud.reserve(tmp.size());
-    for (const auto &pt : tmp.points) {
+    octo_cloud.reserve(processed.size());
+    for (const auto &pt : processed.points) {
       if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
         octo_cloud.push_back(pt.x, pt.y, pt.z);
     }
@@ -239,6 +260,9 @@ private:
   std::string map_frame_;
   std::string base_frame_;
   std::string odom_topic_;
+  // Downsampling configuration
+  bool downsample_enabled_;
+  double downsample_leaf_size_;
 };
 
 int main(int argc, char **argv) {
