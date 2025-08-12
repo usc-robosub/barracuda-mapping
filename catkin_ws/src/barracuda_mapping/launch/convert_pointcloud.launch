@@ -1,0 +1,8 @@
+<launch>
+    <node pkg="barracuda_mapping" type="laserscan_to_pointcloud.py" name="laserscan_converter" ns="barracuda">
+    </node>
+
+
+    <node pkg="barracuda_mapping" type="range_to_pointcloud.py" name="range_converter" ns="barracuda">
+    </node>
+</launch>

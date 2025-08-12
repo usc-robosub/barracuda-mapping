@@ -1,4 +1,6 @@
 <launch>
+  <include file="$(find barracuda_mapping)/launch/convert_pointcloud.launch" />
+
   <node pkg="barracuda_mapping" type="slam_node" name="gtsam_slam_node" ns="barracuda" output="screen">
     <!-- Load all parameters from YAML into the node's private namespace -->
     <rosparam command="load" file="$(find barracuda_mapping)/config/gtsam_params.yaml" />
