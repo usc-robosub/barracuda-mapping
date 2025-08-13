@@ -3,7 +3,8 @@
 # Input topics: can be a single string or a list of strings.
 # Use absolute topics (starting with '/') or relative ones resolved in the node's namespace.
 pointcloud_topics:
-  - left_camera/zed_point_cloud
+  - mapping/scan_pointcloud
+  - mapping/range_pointcloud
 
 # Output topic for odometry (published as nav_msgs/Odometry).
 # If left without a leading '/', it will be resolved relative to the node's namespace.

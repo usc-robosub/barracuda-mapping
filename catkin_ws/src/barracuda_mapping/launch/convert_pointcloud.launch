@@ -1,8 +1,11 @@
 <launch>
     <node pkg="barracuda_mapping" type="laserscan_to_pointcloud.py" name="laserscan_converter" ns="barracuda">
+        <!-- Set input LaserScan topic for conversion -->
+        <param name="laserscan_topic" value="ping360_node/sonar/scan" />
     </node>
 
 
     <node pkg="barracuda_mapping" type="range_to_pointcloud.py" name="range_converter" ns="barracuda">
+        <param name="range_topic" value="ping1d/range" />
     </node>
 </launch>
