@@ -19,21 +19,21 @@ base_frame: barracuda/base_link
 
 # OctoMap resolution (meters per voxel in the occupancy tree).
 # Used as default leaf size for point cloud downsampling if not set explicitly.
-octomap_resolution: 0.25
+octomap_resolution: 0.2
 
 # Point cloud downsampling before inserting into OctoMap.
 # When enabled, a PCL VoxelGrid filter reduces points by replacing points
 # within a voxel with their centroid, greatly speeding up OctoMap insertion.
 downsample_enabled: true
 # Leaf size (meters) for the VoxelGrid. If omitted, defaults to octomap_resolution.
-downsample_leaf_size: 0.25
+downsample_leaf_size: 0.2
 
 # NDT odometry (scan-to-scan) configuration
 # Set the input topic to the point cloud you want to drive odometry.
 # If left empty, the node uses the first configured pointcloud topic.
 ndt_enabled: true
 ndt_odometry_input_topic: ""
-ndt_resolution: 0.5         # meters (voxel grid size used internally by NDT)
+ndt_resolution: 0.2         # meters (voxel grid size used internally by NDT)
 ndt_step_size: 0.1          # line search step size
 ndt_epsilon: 1.0e-6         # transformation epsilon (convergence)
 ndt_max_iterations: 40      # max optimizer iterations
@@ -52,3 +52,11 @@ ndt_sor_mean_k: 20
 ndt_sor_stddev_mul: 1.0
 ndt_ror_radius: 0.5
 ndt_ror_min_neighbors: 2
+
+# NDT submap to reduce drift (scan-to-submap)
+ndt_submap_enabled: true
+ndt_submap_max_keyframes: 5
+ndt_submap_voxel_leaf: 0.2
+
+# Do not publish TF; EKF handles map->odom->base_link
+publish_tf: false
