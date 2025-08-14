@@ -376,7 +376,8 @@ private:
     for (octomap::OcTree::leaf_bbx_iterator it = octree_->begin_leafs_bbx(min, max);
          it != octree_->end_leafs_bbx(); ++it) {
       if (it->getOccupancy() >= octree_->getOccupancyThres()) {
-        const octomap::point3d &p = it.getCoordinate();
+        // getCoordinate() returns by value; do not bind to a reference
+        const octomap::point3d p = it.getCoordinate();
         const double dx = p.x() - center.x();
         const double dy = p.y() - center.y();
         const double dz = p.z() - center.z();
