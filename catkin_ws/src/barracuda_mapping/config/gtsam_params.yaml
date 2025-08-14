@@ -27,3 +27,28 @@ octomap_resolution: 0.25
 downsample_enabled: true
 # Leaf size (meters) for the VoxelGrid. If omitted, defaults to octomap_resolution.
 downsample_leaf_size: 0.25
+
+# NDT odometry (scan-to-scan) configuration
+# Set the input topic to the point cloud you want to drive odometry.
+# If left empty, the node uses the first configured pointcloud topic.
+ndt_enabled: true
+ndt_odometry_input_topic: ""
+ndt_resolution: 0.5         # meters (voxel grid size used internally by NDT)
+ndt_step_size: 0.1          # line search step size
+ndt_epsilon: 1.0e-6         # transformation epsilon (convergence)
+ndt_max_iterations: 40      # max optimizer iterations
+ndt_use_tf_init: true       # use TF delta as initial guess
+
+# NDT odometry stability
+ndt_keyframe_enabled: true
+ndt_keyframe_trans_thresh: 0.20   # meters to create new keyframe
+ndt_keyframe_rot_thresh_deg: 5.0  # degrees to create new keyframe
+
+# NDT outlier filtering (applied before downsampling)
+ndt_outlier_enabled: true
+# methods: "sor" (statistical outlier removal) or "ror" (radius outlier removal)
+ndt_outlier_method: "sor"
+ndt_sor_mean_k: 20
+ndt_sor_stddev_mul: 1.0
+ndt_ror_radius: 0.5
+ndt_ror_min_neighbors: 2

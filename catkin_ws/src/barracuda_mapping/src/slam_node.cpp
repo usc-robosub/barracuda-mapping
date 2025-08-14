@@ -15,6 +15,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/registration/ndt.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <cmath>
 
 #include <octomap/octomap.h>
@@ -40,6 +43,24 @@ public:
     pnh.param<std::string>("map_frame", map_frame_, std::string("map"));
     pnh.param<std::string>("base_frame", base_frame_, std::string("base_link"));
     pnh.param<std::string>("odometry_topic", odom_topic_, std::string("slam/odometry"));
+    // NDT odometry configuration
+    pnh.param("ndt_enabled", ndt_enabled_, true);
+    pnh.param<std::string>("ndt_odometry_input_topic", ndt_odom_input_topic_, std::string(""));
+    pnh.param("ndt_resolution", ndt_resolution_, 0.5);
+    pnh.param("ndt_step_size", ndt_step_size_, 0.1);
+    pnh.param("ndt_epsilon", ndt_epsilon_, 1e-6);
+    pnh.param("ndt_max_iterations", ndt_max_iter_, 40);
+    pnh.param("ndt_use_tf_init", ndt_use_tf_init_, true);
+    // NDT keyframe and outlier filtering
+    pnh.param("ndt_keyframe_enabled", ndt_keyframe_enabled_, true);
+    pnh.param("ndt_keyframe_trans_thresh", ndt_kf_trans_thresh_, 0.2);
+    pnh.param("ndt_keyframe_rot_thresh_deg", ndt_kf_rot_thresh_deg_, 5.0);
+    pnh.param("ndt_outlier_enabled", ndt_outlier_enabled_, true);
+    pnh.param<std::string>("ndt_outlier_method", ndt_outlier_method_, std::string("sor"));
+    pnh.param("ndt_sor_mean_k", ndt_sor_mean_k_, 20);
+    pnh.param("ndt_sor_stddev_mul", ndt_sor_stddev_mul_, 1.0);
+    pnh.param("ndt_ror_radius", ndt_ror_radius_, 0.5);
+    pnh.param("ndt_ror_min_neighbors", ndt_ror_min_neighbors_, 2);
     double resolution;
     pnh.param("octomap_resolution", resolution, 0.1);
     octree_ = std::make_unique<octomap::OcTree>(resolution);
@@ -78,8 +99,24 @@ public:
     ROS_INFO_STREAM("Configured pointcloud topics (" << topics.size() << "):");
     for (const auto &t : topics) ROS_INFO_STREAM("  - " << t);
     for (const auto &t : topics) {
-      cloud_subs_.push_back(nh_.subscribe<sensor_msgs::PointCloud2>(t, 1, boost::bind(&SlamNode::cloudCallback, this, _1)));
+      cloud_subs_.push_back(
+          nh_.subscribe<sensor_msgs::PointCloud2>(
+              t, 1, boost::bind(&SlamNode::cloudCallback, this, _1, t)));
       ROS_INFO_STREAM("Subscribing to pointcloud topic: " << t);
+    }
+    if (ndt_enabled_) {
+      if (ndt_odom_input_topic_.empty() && !topics.empty()) {
+        ndt_odom_input_topic_ = topics.front();
+        ROS_WARN_STREAM("~ndt_odometry_input_topic not set; defaulting to first topic: "
+                        << ndt_odom_input_topic_);
+      }
+      ROS_INFO_STREAM("NDT odometry enabled. Input topic='" << ndt_odom_input_topic_
+                      << "' res=" << ndt_resolution_ << " step=" << ndt_step_size_
+                      << " eps=" << ndt_epsilon_ << " max_iter=" << ndt_max_iter_
+                      << " use_tf_init=" << (ndt_use_tf_init_ ? "true" : "false") << ".");
+      ndt_pose_.setIdentity();
+      keyframe_pose_.setIdentity();
+      ndt_pose_initialized_ = false;
     }
     collision_srv_ = nh_.advertiseService("check_collision", &SlamNode::checkCollision, this);
     odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
@@ -101,7 +138,7 @@ public:
   }
 
 private:
-  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg) {
+  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg, const std::string &topic) {
     ROS_INFO_STREAM_THROTTLE(1.0, "Received cloud: frame='" << msg->header.frame_id
                                   << "' stamp=" << msg->header.stamp.toSec()
                                   << " size=" << msg->width * msg->height);
@@ -122,41 +159,54 @@ private:
         return;
       }
     }
-    sensor_msgs::PointCloud2 transformed;
-    tf2::doTransform(*msg, transformed, tf);
-
-    pcl::PointCloud<pcl::PointXYZ> tmp;
-    pcl::fromROSMsg(transformed, tmp);
+    // Prepare two versions of the cloud:
+    // 1) raw (sensor frame) for NDT odometry
+    // 2) map-frame for OctoMap insertion (from NDT pose if available, else TF)
+    pcl::PointCloud<pcl::PointXYZ> raw_cloud;
+    pcl::fromROSMsg(*msg, raw_cloud);
+    pcl::PointCloud<pcl::PointXYZ> map_frame_cloud;
+    if (ndt_enabled_ && ndt_pose_initialized_) {
+      pcl::transformPointCloud(raw_cloud, map_frame_cloud, ndt_pose_);
+    } else {
+      sensor_msgs::PointCloud2 transformed;
+      tf2::doTransform(*msg, transformed, tf);
+      pcl::fromROSMsg(transformed, map_frame_cloud);
+    }
 
     // Downsample via voxel grid if enabled
-    pcl::PointCloud<pcl::PointXYZ> processed;
+    pcl::PointCloud<pcl::PointXYZ> processed_map;
     if (downsample_enabled_) {
       pcl::VoxelGrid<pcl::PointXYZ> vg;
       vg.setLeafSize(static_cast<float>(downsample_leaf_size_),
                      static_cast<float>(downsample_leaf_size_),
                      static_cast<float>(downsample_leaf_size_));
-      vg.setInputCloud(tmp.makeShared());
-      vg.filter(processed);
+      vg.setInputCloud(map_frame_cloud.makeShared());
+      vg.filter(processed_map);
     } else {
-      processed = std::move(tmp);
+      processed_map = std::move(map_frame_cloud);
     }
 
     std::size_t before = map_cloud_->size();
-    map_cloud_->reserve(map_cloud_->size() + processed.size());
-    *map_cloud_ += processed;
-    ROS_INFO_STREAM_THROTTLE(1.0, "Added " << processed.size() << " points to map ("
+    map_cloud_->reserve(map_cloud_->size() + processed_map.size());
+    *map_cloud_ += processed_map;
+    ROS_INFO_STREAM_THROTTLE(1.0, "Added " << processed_map.size() << " points to map ("
                                       << before << " -> " << map_cloud_->size() << ").");
 
     // Update Octomap
     octomap::Pointcloud octo_cloud;
-    octo_cloud.reserve(processed.size());
-    for (const auto &pt : processed.points) {
+    octo_cloud.reserve(processed_map.size());
+    for (const auto &pt : processed_map.points) {
       if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
         octo_cloud.push_back(pt.x, pt.y, pt.z);
     }
-    octomap::point3d origin(tf.transform.translation.x,
-                            tf.transform.translation.y,
-                            tf.transform.translation.z);
+    octomap::point3d origin(0.f, 0.f, 0.f);
+    if (ndt_enabled_ && ndt_pose_initialized_) {
+      origin = octomap::point3d(ndt_pose_(0,3), ndt_pose_(1,3), ndt_pose_(2,3));
+    } else {
+      origin = octomap::point3d(tf.transform.translation.x,
+                                tf.transform.translation.y,
+                                tf.transform.translation.z);
+    }
     octree_->insertPointCloud(octo_cloud, origin);
     octree_->updateInnerOccupancy();
 
@@ -174,39 +224,117 @@ private:
       octomap_binary_pub_.publish(bin_msg);
     }
 
-    ++pose_idx_;
-    // Convert TF to Eigen Isometry and then to GTSAM Pose3 via 4x4 matrix
-    Eigen::Isometry3d T_eigen = tf2::transformToEigen(tf);
-    gtsam::Pose3 current(T_eigen.matrix());
-    gtsam::Pose3 previous = isam_.calculateEstimate<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_-1));
-    gtsam::Pose3 between = previous.between(current);
-    auto noise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << 0.1,0.1,0.1,0.1,0.1,0.1).finished());
-    graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_-1), gtsam::Symbol('x', pose_idx_), between, noise));
-    initial_.insert(gtsam::Symbol('x', pose_idx_), current);
-    isam_.update(graph_, initial_);
-    graph_.resize(0);
-    initial_.clear();
+    // NDT odometry (if enabled and this topic is selected)
+    if (ndt_enabled_ && topic == ndt_odom_input_topic_) {
+      // Filter raw cloud for NDT input (outliers + downsample)
+      pcl::PointCloud<pcl::PointXYZ>::Ptr src_filt = filterForNDT(raw_cloud);
 
-    gtsam::Pose3 estimate = isam_.calculateEstimate<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_));
-    Eigen::Matrix4d m = estimate.matrix();
-    Eigen::Isometry3d iso(m);
-    geometry_msgs::Pose pose_msg = tf2::toMsg(iso);
+      if (!ndt_pose_initialized_) {
+        // Initialize pose and keyframe
+        ndt_pose_.setIdentity();
+        keyframe_pose_.setIdentity();
+        last_keyframe_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>(*src_filt));
+        ndt_pose_initialized_ = true;
+        publishOdomFromPose(msg->header.stamp);
+      } else {
+        // Choose registration target: keyframe cloud or last cloud
+        pcl::PointCloud<pcl::PointXYZ>::ConstPtr target = last_keyframe_cloud_ ? last_keyframe_cloud_ : last_odom_cloud_;
+        if (!target) {
+          // Fallback in case keyframe is missing
+          last_keyframe_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>(*src_filt));
+          publishOdomFromPose(msg->header.stamp);
+        } else {
+          pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
+          ndt.setTransformationEpsilon(static_cast<float>(ndt_epsilon_));
+          ndt.setStepSize(static_cast<float>(ndt_step_size_));
+          ndt.setResolution(static_cast<float>(ndt_resolution_));
+          ndt.setMaximumIterations(ndt_max_iter_);
+          ndt.setInputTarget(target);
+          ndt.setInputSource(src_filt);
 
-    // Log current pose
-    Eigen::Vector3d t = iso.translation();
-    Eigen::Quaterniond q(iso.rotation());
-    ROS_INFO_STREAM_THROTTLE(1.0, "Pose idx=" << pose_idx_
-                              << " t=[" << t.x() << ", " << t.y() << ", " << t.z() << "]"
-                              << " q=[" << q.x() << ", " << q.y() << ", " << q.z() << ", " << q.w() << "]");
+          Eigen::Matrix4f init = Eigen::Matrix4f::Identity();
+          if (ndt_use_tf_init_) {
+            // Use TF delta between keyframe and current as initial guess
+            try {
+              geometry_msgs::TransformStamped tf_k;
+              tf_k = tf_buffer_.lookupTransform(map_frame_, msg->header.frame_id, msg->header.stamp, ros::Duration(0.05));
+              Eigen::Matrix4f curr_tf = tf2::transformToEigen(tf_k).matrix().cast<float>();
+              // initial guess relative to keyframe
+              init = keyframe_pose_.inverse() * curr_tf;
+            } catch (tf2::TransformException &ex) {
+              // keep identity
+              ROS_WARN_THROTTLE(2.0, "TF init for NDT failed: %s", ex.what());
+            }
+          }
 
-    nav_msgs::Odometry odom;
-    odom.header.stamp = msg->header.stamp;
-    odom.header.frame_id = map_frame_;
-    odom.child_frame_id = base_frame_;
-    odom.pose.pose = pose_msg;
-    odom_pub_.publish(odom);
-    ROS_INFO_STREAM_THROTTLE(1.0, "Published odometry on '" << odom_topic_ << "' at "
-                                      << odom.header.stamp.toSec());
+          pcl::PointCloud<pcl::PointXYZ> aligned;
+          ndt.align(aligned, init);
+          if (!ndt.hasConverged()) {
+            ROS_WARN_THROTTLE(1.0, "NDT did not converge; keeping previous pose.");
+          } else {
+            Eigen::Matrix4f kf_T_curr = ndt.getFinalTransformation(); // current in keyframe frame
+            ndt_pose_ = keyframe_pose_ * kf_T_curr;                   // current in map frame
+
+            // Update last processed cloud
+            last_odom_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>(*src_filt));
+
+            // Keyframe decision
+            if (ndt_keyframe_enabled_) {
+              Eigen::Matrix4f kf_T_est = keyframe_pose_.inverse() * ndt_pose_;
+              Eigen::Vector3f t = kf_T_est.block<3,1>(0,3);
+              float trans = t.norm();
+              Eigen::Matrix3f R = kf_T_est.block<3,3>(0,0);
+              float angle = Eigen::AngleAxisf(R).angle() * 180.0f / static_cast<float>(M_PI);
+              if (trans > ndt_kf_trans_thresh_ || angle > ndt_kf_rot_thresh_deg_) {
+                last_keyframe_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>(*src_filt));
+                keyframe_pose_ = ndt_pose_;
+                ROS_INFO_STREAM_THROTTLE(1.0, "New NDT keyframe: trans=" << trans << " m, rot=" << angle << " deg");
+              }
+            }
+
+            // Publish odometry from NDT pose
+            publishOdomFromPose(msg->header.stamp);
+          }
+        }
+      }
+    }
+
+    // If NDT is disabled or this is not the odom topic, fall back to TF-based odom
+    if (!ndt_enabled_ || topic != ndt_odom_input_topic_) {
+      ++pose_idx_;
+      // Convert TF to Eigen Isometry and then to GTSAM Pose3 via 4x4 matrix
+      Eigen::Isometry3d T_eigen = tf2::transformToEigen(tf);
+      gtsam::Pose3 current(T_eigen.matrix());
+      gtsam::Pose3 previous = isam_.calculateEstimate<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_-1));
+      gtsam::Pose3 between = previous.between(current);
+      auto noise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << 0.1,0.1,0.1,0.1,0.1,0.1).finished());
+      graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_-1), gtsam::Symbol('x', pose_idx_), between, noise));
+      initial_.insert(gtsam::Symbol('x', pose_idx_), current);
+      isam_.update(graph_, initial_);
+      graph_.resize(0);
+      initial_.clear();
+
+      gtsam::Pose3 estimate = isam_.calculateEstimate<gtsam::Pose3>(gtsam::Symbol('x', pose_idx_));
+      Eigen::Matrix4d m = estimate.matrix();
+      Eigen::Isometry3d iso(m);
+      geometry_msgs::Pose pose_msg = tf2::toMsg(iso);
+
+      // Log current pose
+      Eigen::Vector3d t = iso.translation();
+      Eigen::Quaterniond q(iso.rotation());
+      ROS_INFO_STREAM_THROTTLE(1.0, "Pose idx=" << pose_idx_
+                                << " t=[" << t.x() << ", " << t.y() << ", " << t.z() << "]"
+                                << " q=[" << q.x() << ", " << q.y() << ", " << q.z() << ", " << q.w() << "]");
+
+      nav_msgs::Odometry odom;
+      odom.header.stamp = msg->header.stamp;
+      odom.header.frame_id = map_frame_;
+      odom.child_frame_id = base_frame_;
+      odom.pose.pose = pose_msg;
+      odom_pub_.publish(odom);
+      ROS_INFO_STREAM_THROTTLE(1.0, "Published TF-based odometry on '" << odom_topic_ << "' at "
+                                        << odom.header.stamp.toSec());
+    }
 
   }
 
@@ -263,6 +391,75 @@ private:
   // Downsampling configuration
   bool downsample_enabled_;
   double downsample_leaf_size_;
+  // NDT odometry state/config
+  bool ndt_enabled_;
+  std::string ndt_odom_input_topic_;
+  double ndt_resolution_;
+  double ndt_step_size_;
+  double ndt_epsilon_;
+  int ndt_max_iter_;
+  bool ndt_use_tf_init_;
+  bool ndt_pose_initialized_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr last_odom_cloud_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr last_keyframe_cloud_;
+  Eigen::Matrix4f ndt_pose_;
+  Eigen::Matrix4f keyframe_pose_;
+  // Keyframe config
+  bool ndt_keyframe_enabled_;
+  double ndt_kf_trans_thresh_;
+  double ndt_kf_rot_thresh_deg_;
+  // Outlier filtering config
+  bool ndt_outlier_enabled_;
+  std::string ndt_outlier_method_;
+  int ndt_sor_mean_k_;
+  double ndt_sor_stddev_mul_;
+  double ndt_ror_radius_;
+  int ndt_ror_min_neighbors_;
+
+  void publishOdomFromPose(const ros::Time& stamp) {
+    Eigen::Matrix4d m = ndt_pose_.cast<double>();
+    Eigen::Isometry3d iso(m);
+    geometry_msgs::Pose pose_msg = tf2::toMsg(iso);
+    nav_msgs::Odometry odom;
+    odom.header.stamp = stamp;
+    odom.header.frame_id = map_frame_;
+    odom.child_frame_id = base_frame_;
+    odom.pose.pose = pose_msg;
+    odom_pub_.publish(odom);
+    ROS_INFO_STREAM_THROTTLE(1.0, "Published NDT odometry on '" << odom_topic_ << "' at "
+                                      << odom.header.stamp.toSec());
+  }
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr filterForNDT(const pcl::PointCloud<pcl::PointXYZ>& in) {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>(in));
+    if (ndt_outlier_enabled_) {
+      if (ndt_outlier_method_ == "ror") {
+        pcl::RadiusOutlierRemoval<pcl::PointXYZ> ror;
+        ror.setRadiusSearch(static_cast<float>(ndt_ror_radius_));
+        ror.setMinNeighborsInRadius(ndt_ror_min_neighbors_);
+        ror.setInputCloud(cloud);
+        pcl::PointCloud<pcl::PointXYZ> temp; ror.filter(temp);
+        *cloud = std::move(temp);
+      } else {
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+        sor.setMeanK(ndt_sor_mean_k_);
+        sor.setStddevMulThresh(static_cast<float>(ndt_sor_stddev_mul_));
+        sor.setInputCloud(cloud);
+        pcl::PointCloud<pcl::PointXYZ> temp; sor.filter(temp);
+        *cloud = std::move(temp);
+      }
+    }
+    if (downsample_enabled_) {
+      pcl::VoxelGrid<pcl::PointXYZ> vg;
+      vg.setLeafSize(static_cast<float>(downsample_leaf_size_),
+                     static_cast<float>(downsample_leaf_size_),
+                     static_cast<float>(downsample_leaf_size_));
+      vg.setInputCloud(cloud);
+      pcl::PointCloud<pcl::PointXYZ> temp; vg.filter(temp);
+      *cloud = std::move(temp);
+    }
+    return cloud;
+  }
 };
 
 int main(int argc, char **argv) {
