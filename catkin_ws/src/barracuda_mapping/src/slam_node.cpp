@@ -446,11 +446,11 @@ private:
 
   // TF publish
   bool publish_tf_;
-  tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   void publishOdomFromPose(const ros::Time& stamp) {
     // Map->Sensor from NDT
-    Eigen::Isometry3d T_map_sensor = ndt_pose_.cast<double>();
+    Eigen::Matrix4d m_map_sensor = ndt_pose_.cast<double>();
+    Eigen::Isometry3d T_map_sensor(m_map_sensor);
 
     // Sensor->Base from TF (static preferred)
     Eigen::Isometry3d T_sensor_base = Eigen::Isometry3d::Identity();
@@ -475,17 +475,7 @@ private:
     ROS_INFO_STREAM_THROTTLE(1.0, "Published NDT odometry on '" << odom_topic_ << "' at "
                                       << odom.header.stamp.toSec());
 
-    if (publish_tf_) {
-      geometry_msgs::TransformStamped ts;
-      ts.header.stamp = stamp;
-      ts.header.frame_id = map_frame_;
-      ts.child_frame_id = base_frame_;
-      ts.transform.translation.x = odom.pose.pose.position.x;
-      ts.transform.translation.y = odom.pose.pose.position.y;
-      ts.transform.translation.z = odom.pose.pose.position.z;
-      ts.transform.rotation = odom.pose.pose.orientation;
-      tf_broadcaster_.sendTransform(ts);
-    }
+    (void)publish_tf_; // intentionally unused; TF is handled by EKF nodes
   }
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr filterForNDT(const pcl::PointCloud<pcl::PointXYZ>& in) {
