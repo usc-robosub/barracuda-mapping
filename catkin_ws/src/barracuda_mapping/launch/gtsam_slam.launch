@@ -1,8 +1,9 @@
 <launch>
-  <include file="$(find barracuda_mapping)/launch/convert_pointcloud.launch" />
-
-  <node pkg="barracuda_mapping" type="slam_node" name="gtsam_slam_node" ns="barracuda" output="screen">
-    <!-- Load all parameters from YAML into the node's private namespace -->
-    <rosparam command="load" file="$(find barracuda_mapping)/config/gtsam_params.yaml" />
-  </node>
+  <!-- Legacy launch file - now uses unified mapping system -->
+  <!-- To use original GTSAM SLAM, set use_glim="false" -->
+  <arg name="use_glim" default="true" doc="Use GLIM SLAM (true) or original GTSAM SLAM (false)" />
+  
+  <include file="$(find barracuda_mapping)/launch/unified_mapping.launch">
+    <arg name="use_glim" value="$(arg use_glim)" />
+  </include>
 </launch>

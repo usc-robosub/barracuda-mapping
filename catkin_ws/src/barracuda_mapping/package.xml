@@ -77,6 +77,8 @@
   <exec_depend>octomap_msgs</exec_depend>
   <!-- octomap_ros and octomap_server are not used; removed to slim deps -->
 
+  <!-- GLIM dependencies (optional, enabled via launch files) -->
+  <exec_depend condition="$ROS_DISTRO == noetic">glim_ros</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
