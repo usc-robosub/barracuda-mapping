@@ -1,0 +1,51 @@
+{
+  /*** ROS-related config for Barracuda Underwater Robot ***/
+  "glim_ros": {
+    // Backend modules
+    "enable_local_mapping": true,
+    "enable_global_mapping": true,
+    
+    // Points config
+    "keep_raw_points": false,
+    
+    // IMU config for underwater robot
+    "imu_time_offset": 0.0,
+    "points_time_offset": 0.0,
+    "acc_scale": 1.0,
+    
+    // TF config for Barracuda robot
+    // This creates the TF tree: map -> barracuda/odom -> barracuda/base_link
+    //                                -> barracuda/imu -> barracuda/sonar  
+    "imu_frame_id": "barracuda/imu",
+    "lidar_frame_id": "barracuda/sonar",
+    "base_frame_id": "barracuda/base_link",
+    "odom_frame_id": "barracuda/odom", 
+    "map_frame_id": "map",
+    "publish_imu2lidar": true,
+    "tf_time_offset": 1e-6,
+    
+    // Extension modules - lighter setup for underwater robot
+    "extension_modules": [
+      "libmemory_monitor.so",
+      "librviz_viewer.so"
+    ],
+    
+    // Topics for Barracuda robot
+    "imu_topic": "/barracuda/imu/data",
+    "points_topic": "/barracuda/mapping/scan_pointcloud",
+    "image_topic": "/barracuda/camera/image",
+    
+    // QoS options optimized for underwater operation
+    "imu_qos": {
+      "profile": "sensor_data",
+      "depth": 100
+    },
+    "points_qos": {
+      "profile": "sensor_data",
+      "depth": 10
+    },
+    "image_qos": {
+      "profile": "sensor_data"
+    }
+  }
+}

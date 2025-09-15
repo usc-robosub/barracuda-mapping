@@ -1,3 +1,9 @@
 [submodule "catkin_ws/src/barracuda_msgs"]
 	path = catkin_ws/src/barracuda_msgs
 	url = git@github.com:usc-robosub/barracuda_msgs.git
+[submodule "catkin_ws/src/glim_ros1"]
+	path = catkin_ws/src/glim_ros1
+	url = https://github.com/koide3/glim_ros1.git
+[submodule "catkin_ws/src/glim"]
+	path = catkin_ws/src/glim
+	url = https://github.com/koide3/glim.git

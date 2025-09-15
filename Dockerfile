@@ -23,7 +23,18 @@ RUN apt-get install -y --no-install-recommends \
         ros-noetic-tf2-eigen \
         ros-noetic-tf2-sensor-msgs \
         ros-noetic-laser-pipeline \
+        ros-noetic-cv-bridge \
+        ros-noetic-image-transport \
+        ros-noetic-tf2-ros \
+        libeigen3-dev \
+        libnanoflann-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Note: For full GLIM support, additional dependencies may be required:
+# - GTSAM 4.3+ (custom build may be needed)
+# - gtsam_points library
+# - CUDA (for GPU acceleration)
+# See docs/GLIM_SETUP.md for complete installation instructions
 
 # Copy source code into container
 COPY . /opt/barracuda-mapping

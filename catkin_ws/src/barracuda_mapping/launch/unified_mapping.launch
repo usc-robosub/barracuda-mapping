@@ -1,0 +1,66 @@
+<launch>
+  <!-- Unified Barracuda Mapping Launch File -->
+  <!-- Choose between GTSAM SLAM and GLIM SLAM -->
+  
+  <arg name="use_glim" default="true" doc="Use GLIM SLAM instead of GTSAM SLAM" />
+  <arg name="robot_ns" default="barracuda" />
+  
+  <!-- Common frame definitions -->
+  <arg name="map_frame" default="map" />
+  <arg name="odom_frame" default="$(arg robot_ns)/odom" />
+  <arg name="base_frame" default="$(arg robot_ns)/base_link" />
+  
+  <group ns="$(arg robot_ns)">
+    <!-- Always include pointcloud conversion -->
+    <include file="$(find barracuda_mapping)/launch/convert_pointcloud.launch" />
+    
+    <!-- Conditional SLAM choice -->
+    <group if="$(arg use_glim)">
+      <!-- GLIM SLAM Configuration -->
+      <node pkg="glim_ros" type="glim_rosnode" name="glim_slam" output="screen">
+        <param name="config_path" value="$(find barracuda_mapping)/config/glim" />
+        
+        <!-- Debug output -->
+        <param name="debug" value="false" />
+        
+        <!-- Remap topics to barracuda namespace -->
+        <remap from="/glim_ros/imu" to="imu/data" />
+        <remap from="/glim_ros/points" to="mapping/scan_pointcloud" />
+        
+        <!-- Output topics in barracuda namespace -->
+        <remap from="/glim_ros/odom" to="slam/odometry" />
+        <remap from="/glim_ros/pose" to="slam/pose" />
+        <remap from="/glim_ros/map" to="slam/map" />
+        <remap from="/glim_ros/points" to="slam/points" />
+      </node>
+    </group>
+    
+    <group unless="$(arg use_glim)">
+      <!-- Original GTSAM SLAM Configuration -->
+      <node pkg="barracuda_mapping" type="slam_node" name="gtsam_slam_node" output="screen">
+        <!-- Load all parameters from YAML into the node's private namespace -->
+        <rosparam command="load" file="$(find barracuda_mapping)/config/gtsam_params.yaml" />
+        
+        <!-- Ensure TF publishing is disabled to avoid conflicts -->
+        <param name="publish_tf" value="false" />
+        
+        <!-- Set frame names to match expected format -->
+        <param name="map_frame" value="$(arg map_frame)" />
+        <param name="base_frame" value="$(arg base_frame)" />
+      </node>
+    </group>
+  </group>
+  
+  <!-- TF static transforms for robot -->
+  <!-- These should be defined based on the actual robot URDF -->
+  <!-- Example static transforms (adjust based on actual robot geometry) -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_imu" 
+        args="0 0 0 0 0 0 $(arg base_frame) $(arg robot_ns)/imu" />
+        
+  <node pkg="tf2_ros" type="static_transform_publisher" name="imu_to_sonar" 
+        args="0.1 0 0.05 0 0 0 $(arg robot_ns)/imu $(arg robot_ns)/sonar" />
+        
+  <!-- Additional sensor frames as needed -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_dvl" 
+        args="0 0 -0.1 0 0 0 $(arg base_frame) $(arg robot_ns)/dvl" />
+</launch>
