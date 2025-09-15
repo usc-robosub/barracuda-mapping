@@ -166,6 +166,12 @@ The node looks up TF from each cloud’s `frame_id` to `map_frame` at the messag
 - No odometry output: verify TF is available between cloud frames and `map_frame`.
 - No point clouds received: confirm `~pointcloud_topics` matches actual topic names.
 - CMake cannot find octomap: ensure `liboctomap-dev` is installed in your environment. In Docker this is preinstalled; for native builds on Ubuntu 20.04/ROS Noetic: `sudo apt-get install liboctomap-dev ros-noetic-octomap-msgs`.
+- **GLIM Issues**: See [GLIM Integration Guide](docs/GLIM_INTEGRATION.md) for GLIM-specific troubleshooting.
+- **TF Tree Conflicts**: Ensure only one SLAM backend is active at a time.
+
+## Documentation
+- [GLIM Integration Guide](docs/GLIM_INTEGRATION.md) - Detailed GLIM setup and troubleshooting
+- [Original GTSAM Documentation](#) - For legacy SLAM system
 
 ## Visualization
 - RViz: Add an `Octomap` display and set Topic to `/barracuda/octomap_full` or `/barracuda/octomap_binary`. Fixed Frame should match your `map_frame` (default `map`).
